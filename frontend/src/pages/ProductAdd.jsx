@@ -57,74 +57,89 @@ export default function ProductsAdd() {
   };
 
   const handleSubmit = async () => {
-    try {
-      // Step 1: Add product without images
-      const productRes = await fetch(
-        "https://snazzl-backend.vercel.app/api/products/add",
+  try {
+    // 1️⃣ Prepare safe payload
+    const payload = {
+      name: formData.name.trim(),
+      category: formData.category.trim(),
+      price: Number(formData.price) || 0,
+      tags: tags,
+      color: formData.color?.trim() || "",
+      size: formData.size?.trim() || "",
+      subCategory: formData.subCategory?.trim() || "",
+      fit: formData.fit?.trim() || "",
+      fabric: formData.fabric?.trim() || "",
+      sustainable: formData.sustainable?.trim() || "",
+      materialCare: formData.materialCare?.trim() || "",
+      details: formData.details.map((d) => d.trim()),
+      description: formData.description?.trim() || "",
+    };
+
+    // 2️⃣ Create product (without images)
+    const productRes = await fetch(
+      "https://snazzl-backend.vercel.app/api/products/add",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const productData = await productRes.json();
+    if (!productRes.ok) {
+      alert("Failed to create product: " + (productData.message || "Unknown error"));
+      return;
+    }
+
+    const productId = productData._id || productData.id;
+    if (!productId) {
+      alert("Product created but no ID returned from backend");
+      return;
+    }
+
+    // 3️⃣ Upload images (if any)
+    if (formData.images.length > 0) {
+      const fd = new FormData();
+      formData.images.forEach((file) => fd.append("images", file));
+
+      const imgRes = await fetch(
+        `https://snazzl-backend.vercel.app/api/products/upload/images/${productId}`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...formData,
-            images: [],
-            tags: tags,
-          }),
+          body: fd,
         }
       );
 
-      const productData = await productRes.json();
-      if (!productRes.ok) {
-        alert("Failed to create product: " + productData.message);
+      if (!imgRes.ok) {
+        alert("Product created, but image upload failed!");
         return;
       }
-
-      const productId = productData._id || productData.id;
-      if (!productId) {
-        alert("Product created but no ID returned from backend");
-        return;
-      }
-
-      // Step 2: Upload images
-      if (formData.images.length > 0) {
-        const fd = new FormData();
-        formData.images.forEach((file) => fd.append("images", file));
-
-        const imgRes = await fetch(
-          `https://snazzl-backend.vercel.app/api/products/upload/images/${productId}`,
-          {
-            method: "POST",
-            body: fd,
-          }
-        );
-
-        if (!imgRes.ok) {
-          alert("Product created, but image upload failed!");
-          return;
-        }
-      }
-
-      alert("Product and images added successfully!");
-      setFormData({
-        name: "",
-        color: "",
-        category: "",
-        size: "",
-        subCategory: "",
-        fit: "",
-        price: "",
-        fabric: "",
-        sustainable: "",
-        materialCare: "",
-        details: ["", "", ""],
-        description: "",
-        images: [],
-      });
-      setTags([]);
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong");
     }
-  };
+
+    // 4️⃣ Success
+    alert("Product and images added successfully!");
+    setFormData({
+      name: "",
+      color: "",
+      category: "",
+      size: "",
+      subCategory: "",
+      fit: "",
+      price: "",
+      fabric: "",
+      sustainable: "",
+      materialCare: "",
+      details: ["", "", ""],
+      description: "",
+      images: [],
+    });
+    setTags([]);
+  } catch (err) {
+    console.error(err);
+    alert("Something went wrong");
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gray-50">
