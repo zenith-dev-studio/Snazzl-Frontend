@@ -1,9 +1,16 @@
 import { useState, useRef } from "react";
-import { Upload, Trash2, X } from "lucide-react";
+import { Upload, X } from "lucide-react";
 import { NavBar } from "../components/NavBar";
 
 export default function ProductsAdd() {
-  const [tags, setTags] = useState(["Sneaker", "Shoes", "Footwear", "Mens", "Blue", "Fashion"]);
+  const [tags, setTags] = useState([
+    "Sneaker",
+    "Shoes",
+    "Footwear",
+    "Mens",
+    "Blue",
+    "Fashion",
+  ]);
   const [inputTag, setInputTag] = useState("");
   const [formData, setFormData] = useState({
     name: "",
@@ -51,44 +58,68 @@ export default function ProductsAdd() {
 
   const handleSubmit = async () => {
     try {
-      const fd = new FormData();
-      Object.keys(formData).forEach((key) => {
-        if (key === "images") {
-          formData.images.forEach((file) => fd.append("images", file));
-        } else if (Array.isArray(formData[key])) {
-          formData[key].forEach((item) => fd.append(key, item));
-        } else {
-          fd.append(key, formData[key]);
+      // Step 1: Add product without images
+      const productRes = await fetch(
+        "https://snazzl-backend.vercel.app/api/products/add",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...formData,
+            images: [],
+            tags: tags,
+          }),
         }
-      });
-      tags.forEach((tag) => fd.append("tags", tag));
+      );
 
-      const res = await fetch("https://snazzl-backend.vercel.app/api/products/add", {
-        method: "POST",
-        body: fd,
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert("Product added successfully!");
-        setFormData({
-          name: "",
-          color: "",
-          category: "",
-          size: "",
-          subCategory: "",
-          fit: "",
-          price: "",
-          fabric: "",
-          sustainable: "",
-          materialCare: "",
-          details: ["", "", ""],
-          description: "",
-          images: [],
-        });
-        setTags([]);
-      } else {
-        alert("Failed to add product: " + data.message);
+      const productData = await productRes.json();
+      if (!productRes.ok) {
+        alert("Failed to create product: " + productData.message);
+        return;
       }
+
+      const productId = productData._id || productData.id;
+      if (!productId) {
+        alert("Product created but no ID returned from backend");
+        return;
+      }
+
+      // Step 2: Upload images
+      if (formData.images.length > 0) {
+        const fd = new FormData();
+        formData.images.forEach((file) => fd.append("images", file));
+
+        const imgRes = await fetch(
+          `https://snazzl-backend.vercel.app/api/products/upload/images/${productId}`,
+          {
+            method: "POST",
+            body: fd,
+          }
+        );
+
+        if (!imgRes.ok) {
+          alert("Product created, but image upload failed!");
+          return;
+        }
+      }
+
+      alert("Product and images added successfully!");
+      setFormData({
+        name: "",
+        color: "",
+        category: "",
+        size: "",
+        subCategory: "",
+        fit: "",
+        price: "",
+        fabric: "",
+        sustainable: "",
+        materialCare: "",
+        details: ["", "", ""],
+        description: "",
+        images: [],
+      });
+      setTags([]);
     } catch (err) {
       console.error(err);
       alert("Something went wrong");
@@ -115,9 +146,12 @@ export default function ProductsAdd() {
             onClick={() => fileInputRef.current.click()}
           >
             <Upload className="h-10 w-10 text-[#2A85FF]" />
-            <p className="mt-2 text-sm font-medium text-[#2A85FF]">Upload Image</p>
+            <p className="mt-2 text-sm font-medium text-[#2A85FF]">
+              Upload Image
+            </p>
             <p className="mt-1 text-xs text-gray-500 text-center">
-              Upload a cover image for your product.<br />
+              Upload a cover image for your product.
+              <br />
               File Format jpeg, png <br /> Recommended Size 600×600 (1:1)
             </p>
             <input
@@ -156,19 +190,45 @@ export default function ProductsAdd() {
         <div className="rounded-xl bg-white p-6 lg:col-span-2 shadow-md pt-5">
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: "Product Name", field: "name", placeholder: "Black plain nike Shoes" },
+              {
+                label: "Product Name",
+                field: "name",
+                placeholder: "Black plain nike Shoes",
+              },
               { label: "Product Color", field: "color", placeholder: "Black" },
               { label: "Category", field: "category", placeholder: "Mens" },
               { label: "Product Size", field: "size", placeholder: "Size 9" },
-              { label: "Sub Category", field: "subCategory", placeholder: "Nike Shoes" },
-              { label: "Product Fit", field: "fit", placeholder: "Regular Fit" },
+              {
+                label: "Sub Category",
+                field: "subCategory",
+                placeholder: "Nike Shoes",
+              },
+              {
+                label: "Product Fit",
+                field: "fit",
+                placeholder: "Regular Fit",
+              },
               { label: "Price", field: "price", placeholder: "3999" },
-              { label: "Product Fabric", field: "fabric", placeholder: "Leather" },
-              { label: "Sustainable", field: "sustainable", placeholder: "Regular" },
-              { label: "Material & Care", field: "materialCare", placeholder: "Cotton, Machine Wash" },
+              {
+                label: "Product Fabric",
+                field: "fabric",
+                placeholder: "Leather",
+              },
+              {
+                label: "Sustainable",
+                field: "sustainable",
+                placeholder: "Regular",
+              },
+              {
+                label: "Material & Care",
+                field: "materialCare",
+                placeholder: "Cotton, Machine Wash",
+              },
             ].map((field, i) => (
               <div key={i}>
-                <label className="mb-1 block text-sm font-medium text-gray-700">{field.label}</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  {field.label}
+                </label>
                 <input
                   type="text"
                   placeholder={field.placeholder}
@@ -181,7 +241,9 @@ export default function ProductsAdd() {
           </div>
 
           <div className="mt-4 space-y-2">
-            <label className="mb-1 block text-sm font-medium text-gray-700">Product Details</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Product Details
+            </label>
             {formData.details.map((detail, i) => (
               <input
                 key={i}
@@ -195,7 +257,9 @@ export default function ProductsAdd() {
           </div>
 
           <div className="mt-4">
-            <label className="mb-2 block text-sm font-medium text-gray-700">Tags</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Tags
+            </label>
             <div className="flex flex-wrap gap-2 mb-2">
               {tags.map((tag) => (
                 <span
@@ -203,7 +267,10 @@ export default function ProductsAdd() {
                   className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm text-blue-600"
                 >
                   {tag}
-                  <button onClick={() => removeTag(tag)} className="ml-1 text-blue-400 hover:text-red-500">
+                  <button
+                    onClick={() => removeTag(tag)}
+                    className="ml-1 text-blue-400 hover:text-red-500"
+                  >
                     <X size={14} />
                   </button>
                 </span>
@@ -227,7 +294,9 @@ export default function ProductsAdd() {
           </div>
 
           <div className="mt-4">
-            <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Description
+            </label>
             <textarea
               value={formData.description}
               onChange={(e) => handleChange(e, "description")}
