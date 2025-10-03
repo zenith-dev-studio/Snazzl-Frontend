@@ -63,7 +63,7 @@ export default function ProductsAdd() {
       });
       tags.forEach((tag) => fd.append("tags", tag));
 
-      const res = await fetch("http://localhost:3000/api/products/add", {
+      const res = await fetch("https://snazzl-backend.vercel.app/api/products/add", {
         method: "POST",
         body: fd,
       });
