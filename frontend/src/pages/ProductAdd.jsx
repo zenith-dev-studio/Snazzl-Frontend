@@ -3,24 +3,22 @@ import { Upload, X } from "lucide-react";
 import { NavBar } from "../components/NavBar";
 
 export default function ProductsAdd() {
-  const [tags, setTags] = useState(["Sneaker", "Shoes", "Footwear"]);
+  const [tags, setTags] = useState([]);
   const [inputTag, setInputTag] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     color: "",
     category: "",
-    size: [""],
+    size: "",
     subCategory: "",
     fit: "",
-    price: [0],
+    price: "",
     fabric: "",
     sustainable: "",
     materialCare: "",
-    availability: ["Available"],
     details: ["", "", ""],
     description: "",
     images: [],
-    quantity: [1],
   });
   const fileInputRef = useRef(null);
 
@@ -40,10 +38,10 @@ export default function ProductsAdd() {
     setFormData({ ...formData, [field]: e.target.value });
   };
 
-  const handleArrayChange = (field, index, value) => {
-    const updated = [...formData[field]];
-    updated[index] = value;
-    setFormData({ ...formData, [field]: updated });
+  const handleDetailChange = (i, value) => {
+    const updated = [...formData.details];
+    updated[i] = value;
+    setFormData({ ...formData, details: updated });
   };
 
   const handleFileChange = (e) => {
@@ -53,61 +51,54 @@ export default function ProductsAdd() {
 
   const handleSubmit = async () => {
     try {
-      // 1️⃣ Add product first
-      const payload = {
-        ...formData,
-        tags,
-      };
+      if (!formData.name || !formData.category) {
+        alert("Product Name and Category are required!");
+        return;
+      }
 
-      const res = await fetch("https://snazzl-backend.vercel.app/api/products/add", {
+      const fd = new FormData();
+      // Add basic fields
+      Object.keys(formData).forEach((key) => {
+        if (key === "images") {
+          formData.images.forEach((file) => fd.append("images", file));
+        } else if (Array.isArray(formData[key])) {
+          formData[key].forEach((item) => fd.append(key, item));
+        } else {
+          fd.append(key, formData[key]);
+        }
+      });
+      tags.forEach((tag) => fd.append("tags", tag));
+
+      const res = await fetch("/api/products/add", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: fd,
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to add product");
-
-      const productId = data.result.productId; // Convex backend returns this
-
-      // 2️⃣ Upload images separately
-      if (formData.images.length) {
-        const fd = new FormData();
-        formData.images.forEach((file) => fd.append("images", file));
-
-        const imgRes = await fetch(
-          `https://snazzl-backend.vercel.app/api/products/upload/images/${productId}`,
-          { method: "POST", body: fd }
-        );
-
-        if (!imgRes.ok) {
-          const errData = await imgRes.json();
-          throw new Error(errData.error || "Failed to upload images");
-        }
+      if (res.ok) {
+        alert("Product added successfully!");
+        setFormData({
+          name: "",
+          color: "",
+          category: "",
+          size: "",
+          subCategory: "",
+          fit: "",
+          price: "",
+          fabric: "",
+          sustainable: "",
+          materialCare: "",
+          details: ["", "", ""],
+          description: "",
+          images: [],
+        });
+        setTags([]);
+      } else {
+        alert("Failed to add product: " + (data.error || data.message));
       }
-
-      alert("Product added successfully!");
-      setFormData({
-        name: "",
-        color: "",
-        category: "",
-        size: [""],
-        subCategory: "",
-        fit: "",
-        price: [0],
-        fabric: "",
-        sustainable: "",
-        materialCare: "",
-        availability: ["Available"],
-        details: ["", "", ""],
-        description: "",
-        images: [],
-        quantity: [1],
-      });
-      setTags([]);
     } catch (err) {
       console.error(err);
-      alert(err.message);
+      alert("Something went wrong: " + err.message);
     }
   };
 
@@ -133,7 +124,8 @@ export default function ProductsAdd() {
             <Upload className="h-10 w-10 text-[#2A85FF]" />
             <p className="mt-2 text-sm font-medium text-[#2A85FF]">Upload Image</p>
             <p className="mt-1 text-xs text-gray-500 text-center">
-              Upload cover images. jpeg/png, recommended 600×600.
+              Upload a cover image for your product.<br />
+              File Format jpeg, png <br /> Recommended Size 600×600 (1:1)
             </p>
             <input
               type="file"
@@ -171,22 +163,25 @@ export default function ProductsAdd() {
         <div className="rounded-xl bg-white p-6 lg:col-span-2 shadow-md pt-5">
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: "Product Name", field: "name" },
-              { label: "Color", field: "color" },
-              { label: "Category", field: "category" },
-              { label: "Sub Category", field: "subCategory" },
-              { label: "Fit", field: "fit" },
-              { label: "Fabric", field: "fabric" },
-              { label: "Sustainable", field: "sustainable" },
-              { label: "Material & Care", field: "materialCare" },
-            ].map((item) => (
-              <div key={item.field}>
-                <label className="mb-1 block text-sm font-medium text-gray-700">{item.label}</label>
+              { label: "Product Name", field: "name", placeholder: "Black plain nike Shoes" },
+              { label: "Product Color", field: "color", placeholder: "Black" },
+              { label: "Category", field: "category", placeholder: "Mens" },
+              { label: "Product Size", field: "size", placeholder: "Size 9" },
+              { label: "Sub Category", field: "subCategory", placeholder: "Nike Shoes" },
+              { label: "Product Fit", field: "fit", placeholder: "Regular Fit" },
+              { label: "Price", field: "price", placeholder: "3999" },
+              { label: "Product Fabric", field: "fabric", placeholder: "Leather" },
+              { label: "Sustainable", field: "sustainable", placeholder: "Regular" },
+              { label: "Material & Care", field: "materialCare", placeholder: "Cotton, Machine Wash" },
+            ].map((field, i) => (
+              <div key={i}>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{field.label}</label>
                 <input
                   type="text"
-                  value={formData[item.field]}
-                  onChange={(e) => handleChange(e, item.field)}
-                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
+                  placeholder={field.placeholder}
+                  value={formData[field.field]}
+                  onChange={(e) => handleChange(e, field.field)}
+                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
                 />
               </div>
             ))}
@@ -199,9 +194,9 @@ export default function ProductsAdd() {
                 key={i}
                 type="text"
                 value={detail}
-                onChange={(e) => handleArrayChange("details", i, e.target.value)}
-                placeholder={`Detail ${i + 1}`}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
+                onChange={(e) => handleDetailChange(i, e.target.value)}
+                placeholder="Detail"
+                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
               />
             ))}
           </div>
@@ -227,7 +222,7 @@ export default function ProductsAdd() {
                 value={inputTag}
                 onChange={(e) => setInputTag(e.target.value)}
                 placeholder="Add a tag"
-                className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
+                className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
               />
               <button
                 type="submit"
@@ -243,8 +238,9 @@ export default function ProductsAdd() {
             <textarea
               value={formData.description}
               onChange={(e) => handleChange(e, "description")}
+              placeholder="Enter product description"
               rows={4}
-              className="w-full resize-none rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
+              className="w-full resize-none rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-[#2A85FF] focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
         </div>
