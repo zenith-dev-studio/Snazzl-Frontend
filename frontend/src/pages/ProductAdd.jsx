@@ -1,9 +1,9 @@
 import { useState, useRef } from "react";
-import { Upload, X } from "lucide-react";
+import { Upload, Trash2, X } from "lucide-react";
 import { NavBar } from "../components/NavBar";
 
 export default function ProductsAdd() {
-  const [tags, setTags] = useState([]);
+  const [tags, setTags] = useState(["Sneaker", "Shoes", "Footwear", "Mens", "Blue", "Fashion"]);
   const [inputTag, setInputTag] = useState("");
   const [formData, setFormData] = useState({
     name: "",
@@ -51,13 +51,7 @@ export default function ProductsAdd() {
 
   const handleSubmit = async () => {
     try {
-      if (!formData.name || !formData.category) {
-        alert("Product Name and Category are required!");
-        return;
-      }
-
       const fd = new FormData();
-      // Add basic fields
       Object.keys(formData).forEach((key) => {
         if (key === "images") {
           formData.images.forEach((file) => fd.append("images", file));
@@ -69,11 +63,10 @@ export default function ProductsAdd() {
       });
       tags.forEach((tag) => fd.append("tags", tag));
 
-      const res = await fetch("/api/products/add", {
+      const res = await fetch("https://snazzl-backend.vercel.app/api/products/add", {
         method: "POST",
         body: fd,
       });
-
       const data = await res.json();
       if (res.ok) {
         alert("Product added successfully!");
@@ -94,11 +87,11 @@ export default function ProductsAdd() {
         });
         setTags([]);
       } else {
-        alert("Failed to add product: " + (data.error || data.message));
+        alert("Failed to add product: " + data.message);
       }
     } catch (err) {
       console.error(err);
-      alert("Something went wrong: " + err.message);
+      alert("Something went wrong");
     }
   };
 
