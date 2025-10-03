@@ -3,37 +3,31 @@ import { Upload, X } from "lucide-react";
 import { NavBar } from "../components/NavBar";
 
 export default function ProductsAdd() {
-  const [tags, setTags] = useState([
-    "Sneaker",
-    "Shoes",
-    "Footwear",
-    "Mens",
-    "Blue",
-    "Fashion",
-  ]);
+  const [tags, setTags] = useState(["Sneaker", "Shoes", "Footwear"]);
   const [inputTag, setInputTag] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     color: "",
     category: "",
-    size: "",
+    size: [""],
     subCategory: "",
     fit: "",
-    price: "",
+    price: [0],
     fabric: "",
     sustainable: "",
     materialCare: "",
+    availability: ["Available"],
     details: ["", "", ""],
     description: "",
     images: [],
+    quantity: [1],
   });
   const fileInputRef = useRef(null);
 
   const addTag = (e) => {
     e.preventDefault();
-    const tag = inputTag.trim();
-    if (tag && !tags.includes(tag)) {
-      setTags([...tags, tag]);
+    if (inputTag.trim() && !tags.includes(inputTag.trim())) {
+      setTags([...tags, inputTag.trim()]);
     }
     setInputTag("");
   };
@@ -46,10 +40,10 @@ export default function ProductsAdd() {
     setFormData({ ...formData, [field]: e.target.value });
   };
 
-  const handleDetailChange = (i, value) => {
-    const updated = [...formData.details];
-    updated[i] = value;
-    setFormData({ ...formData, details: updated });
+  const handleArrayChange = (field, index, value) => {
+    const updated = [...formData[field]];
+    updated[index] = value;
+    setFormData({ ...formData, [field]: updated });
   };
 
   const handleFileChange = (e) => {
@@ -59,86 +53,61 @@ export default function ProductsAdd() {
 
   const handleSubmit = async () => {
     try {
-      // 1️⃣ Prepare payload (sanitize & convert numeric fields)
+      // 1️⃣ Add product first
       const payload = {
-        name: formData.name.trim(),
-        category: formData.category.trim(),
-        price: Number(formData.price) || 0,
+        ...formData,
         tags,
-        color: formData.color?.trim() || "",
-        size: formData.size?.trim() || "",
-        subCategory: formData.subCategory?.trim() || "",
-        fit: formData.fit?.trim() || "",
-        fabric: formData.fabric?.trim() || "",
-        sustainable: formData.sustainable?.trim() || "",
-        materialCare: formData.materialCare?.trim() || "",
-        details: formData.details.map((d) => d.trim()),
-        description: formData.description?.trim() || "",
       };
 
-      // 2️⃣ Create product first
-      const productRes = await fetch(
-        "https://snazzl-backend.vercel.app/api/products/add",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
+      const res = await fetch("https://snazzl-backend.vercel.app/api/products/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-      const productData = await productRes.json();
-      if (!productRes.ok) {
-        alert("Failed to create product: " + (productData.message || "Unknown error"));
-        return;
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to add product");
 
-      const productId = productData._id || productData.id;
-      if (!productId) {
-        alert("Product created but no ID returned from backend");
-        return;
-      }
+      const productId = data.result.productId; // Convex backend returns this
 
-      // 3️⃣ Upload images if any
-      if (formData.images.length > 0) {
+      // 2️⃣ Upload images separately
+      if (formData.images.length) {
         const fd = new FormData();
         formData.images.forEach((file) => fd.append("images", file));
 
         const imgRes = await fetch(
           `https://snazzl-backend.vercel.app/api/products/upload/images/${productId}`,
-          {
-            method: "POST",
-            body: fd,
-          }
+          { method: "POST", body: fd }
         );
 
         if (!imgRes.ok) {
-          alert("Product created, but image upload failed!");
-          return;
+          const errData = await imgRes.json();
+          throw new Error(errData.error || "Failed to upload images");
         }
       }
 
-      alert("Product and images added successfully!");
-
-      // 4️⃣ Reset form
+      alert("Product added successfully!");
       setFormData({
         name: "",
         color: "",
         category: "",
-        size: "",
+        size: [""],
         subCategory: "",
         fit: "",
-        price: "",
+        price: [0],
         fabric: "",
         sustainable: "",
         materialCare: "",
+        availability: ["Available"],
         details: ["", "", ""],
         description: "",
         images: [],
+        quantity: [1],
       });
       setTags([]);
     } catch (err) {
       console.error(err);
-      alert("Something went wrong");
+      alert(err.message);
     }
   };
 
@@ -156,7 +125,6 @@ export default function ProductsAdd() {
       </div>
 
       <div className="mx-auto mt-6 grid max-w-7xl grid-cols-1 gap-6 px-6 lg:grid-cols-3">
-        {/* Image Upload */}
         <div className="rounded-xl shadow-md bg-white p-4 h-[550px] pt-5">
           <div
             className="flex h-64 flex-col items-center justify-center rounded-xl bg-[#F2F2F2] cursor-pointer"
@@ -165,8 +133,7 @@ export default function ProductsAdd() {
             <Upload className="h-10 w-10 text-[#2A85FF]" />
             <p className="mt-2 text-sm font-medium text-[#2A85FF]">Upload Image</p>
             <p className="mt-1 text-xs text-gray-500 text-center">
-              Upload a cover image for your product.<br />
-              File Format jpeg, png <br /> Recommended Size 600×600 (1:1)
+              Upload cover images. jpeg/png, recommended 600×600.
             </p>
             <input
               type="file"
@@ -201,29 +168,25 @@ export default function ProductsAdd() {
           </div>
         </div>
 
-        {/* Product Form */}
         <div className="rounded-xl bg-white p-6 lg:col-span-2 shadow-md pt-5">
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: "Product Name", field: "name", placeholder: "Black plain nike Shoes" },
-              { label: "Product Color", field: "color", placeholder: "Black" },
-              { label: "Category", field: "category", placeholder: "Mens" },
-              { label: "Product Size", field: "size", placeholder: "Size 9" },
-              { label: "Sub Category", field: "subCategory", placeholder: "Nike Shoes" },
-              { label: "Product Fit", field: "fit", placeholder: "Regular Fit" },
-              { label: "Price", field: "price", placeholder: "3999" },
-              { label: "Product Fabric", field: "fabric", placeholder: "Leather" },
-              { label: "Sustainable", field: "sustainable", placeholder: "Regular" },
-              { label: "Material & Care", field: "materialCare", placeholder: "Cotton, Machine Wash" },
-            ].map((field, i) => (
-              <div key={i}>
-                <label className="mb-1 block text-sm font-medium text-gray-700">{field.label}</label>
+              { label: "Product Name", field: "name" },
+              { label: "Color", field: "color" },
+              { label: "Category", field: "category" },
+              { label: "Sub Category", field: "subCategory" },
+              { label: "Fit", field: "fit" },
+              { label: "Fabric", field: "fabric" },
+              { label: "Sustainable", field: "sustainable" },
+              { label: "Material & Care", field: "materialCare" },
+            ].map((item) => (
+              <div key={item.field}>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{item.label}</label>
                 <input
                   type="text"
-                  placeholder={field.placeholder}
-                  value={formData[field.field]}
-                  onChange={(e) => handleChange(e, field.field)}
-                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
+                  value={formData[item.field]}
+                  onChange={(e) => handleChange(e, item.field)}
+                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
                 />
               </div>
             ))}
@@ -236,9 +199,9 @@ export default function ProductsAdd() {
                 key={i}
                 type="text"
                 value={detail}
-                onChange={(e) => handleDetailChange(i, e.target.value)}
-                placeholder="Detail"
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
+                onChange={(e) => handleArrayChange("details", i, e.target.value)}
+                placeholder={`Detail ${i + 1}`}
+                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
               />
             ))}
           </div>
@@ -264,7 +227,7 @@ export default function ProductsAdd() {
                 value={inputTag}
                 onChange={(e) => setInputTag(e.target.value)}
                 placeholder="Add a tag"
-                className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
+                className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
               />
               <button
                 type="submit"
@@ -280,9 +243,8 @@ export default function ProductsAdd() {
             <textarea
               value={formData.description}
               onChange={(e) => handleChange(e, "description")}
-              placeholder="Enter product description"
               rows={4}
-              className="w-full resize-none rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-[#2A85FF] focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full resize-none rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
             />
           </div>
         </div>
