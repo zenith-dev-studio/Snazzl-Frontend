@@ -1,23 +1,37 @@
 import { useState, useRef } from "react";
-import { Upload, Trash2, X } from "lucide-react";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
+import { Upload, X } from "lucide-react";
 import { NavBar } from "../components/NavBar";
 
+// Default Product Data for Testing
+const defaultProductData = {
+  name: "",
+  color: "",
+  category: "",
+  subCategory: "",
+  fit: "",
+  fabric: "",
+  sustainable: "",
+  materialCare: "",
+  details: "",
+  description: "",
+  size: [],
+  price: [],
+  quantity: [],
+  availability: [],
+  status: "Active",
+};
+
+const defaultTags = [];
+
 export default function ProductsAdd() {
-  const [tags, setTags] = useState(["Sneaker", "Shoes", "Footwear", "Mens", "Blue", "Fashion"]);
+  const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false); 
+  const [tags, setTags] = useState(defaultTags);
   const [inputTag, setInputTag] = useState("");
   const [formData, setFormData] = useState({
-    name: "",
-    color: "",
-    category: "",
-    size: "",
-    subCategory: "",
-    fit: "",
-    price: "",
-    fabric: "",
-    sustainable: "",
-    materialCare: "",
-    details: ["", "", ""],
-    description: "",
+    ...defaultProductData,
+    storeId: "k57atqdhfsczhpcv1mfm36xym57s2b70", // Hardcoded storeId, Please use clerk id whenever you integrate the clerk portion on the store part, else I have done for you :)
     images: [],
   });
   const fileInputRef = useRef(null);
@@ -31,177 +45,209 @@ export default function ProductsAdd() {
   };
 
   const removeTag = (tagToRemove) => {
-    setTags(tags.filter((tag) => tag !== tagToRemove));
+    setTags(tags.filter((t) => t !== tagToRemove));
   };
 
   const handleChange = (e, field) => {
-    setFormData({ ...formData, [field]: e.target.value });
+    let { value } = e.target;
+    let newFormData = { ...formData };
+
+    if (["size", "price", "quantity", "availability"].includes(field)) {
+        const valueArray = value.split(",").map((v) => v.trim()).filter(Boolean);
+        
+        if (field === "size") {
+            newFormData.size = valueArray;
+            const sizeCount = valueArray.length;
+            const safeSlice = (arr) => arr.slice(0, sizeCount);
+            newFormData.price = safeSlice(newFormData.price);
+            newFormData.quantity = safeSlice(newFormData.quantity);
+            newFormData.availability = safeSlice(newFormData.availability);
+            while (newFormData.price.length < sizeCount) newFormData.price.push('');
+            while (newFormData.quantity.length < sizeCount) newFormData.quantity.push('');
+            while (newFormData.availability.length < sizeCount) newFormData.availability.push('Available');
+        } else if (field === "price" || field === "quantity") {
+            newFormData[field] = valueArray.map(v => isNaN(Number(v)) ? 0 : Number(v));
+        } else {
+            newFormData[field] = valueArray;
+        }
+    } else {
+        newFormData[field] = value;
+    }
+    
+    setFormData(newFormData);
   };
 
-  const handleDetailChange = (i, value) => {
-    const updated = [...formData.details];
-    updated[i] = value;
-    setFormData({ ...formData, details: updated });
-  };
 
   const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    setFormData({ ...formData, images: files });
+    setFormData({ ...formData, images: [...formData.images, ...Array.from(e.target.files)] });
+  };
+  
+  const removeImage = (indexToRemove) => {
+    setFormData({ ...formData, images: formData.images.filter((_, index) => index !== indexToRemove) });
   };
 
+
   const handleSubmit = async () => {
+    setIsSubmitting(true);
     try {
       const fd = new FormData();
+      const arrayFields = ["size", "price", "availability", "quantity"];
+
       Object.keys(formData).forEach((key) => {
         if (key === "images") {
           formData.images.forEach((file) => fd.append("images", file));
-        } else if (Array.isArray(formData[key])) {
-          formData[key].forEach((item) => fd.append(key, item));
+        } else if (arrayFields.includes(key)) {
+          fd.append(key, JSON.stringify(formData[key]));
         } else {
           fd.append(key, formData[key]);
         }
       });
-      tags.forEach((tag) => fd.append("tags", tag));
+      
+      fd.append("tags", JSON.stringify(tags));
 
-      const res = await fetch("https://snazzl-backend.vercel.app/api/products/add", {
-        method: "POST",
-        body: fd,
-      });
+      const res = await fetch(
+        import.meta.env.VITE_BASE_URL + "/api/products/addProductWithImages",
+        { method: "POST", body: fd }
+      );
+
       const data = await res.json();
+      
       if (res.ok) {
         alert("Product added successfully!");
-        setFormData({
-          name: "",
-          color: "",
-          category: "",
-          size: "",
-          subCategory: "",
-          fit: "",
-          price: "",
-          fabric: "",
-          sustainable: "",
-          materialCare: "",
-          details: ["", "", ""],
-          description: "",
-          images: [],
-        });
-        setTags([]);
+        navigate("/shop/products"); // Redirect on success
       } else {
-        alert("Failed to add product: " + data.message);
+        console.error("Server responded with an error:", data);
+        alert(`Failed to add product: ${data.error || data.message || 'Unknown server error'}`);
       }
     } catch (err) {
-      console.error(err);
-      alert("Something went wrong");
+      console.error("Submission error:", err);
+      alert("Something went wrong. Please check the console for details.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  const formFields = [
+    { label: "Product Name", field: "name", placeholder: "e.g., Aviator Leather Jacket" },
+    { label: "Product Color", field: "color", placeholder: "e.g., Blue" },
+    { label: "Category", field: "category", placeholder: "e.g., Men" },
+    { label: "Sub Category", field: "subCategory", placeholder: "e.g., Aviator Leather Jacket" },
+    { label: "Product Size", field: "size", placeholder: "S, M, L (comma-separated)" },
+    { label: "Price", field: "price", placeholder: "3715, 3915, 4115 (for each size)" },
+    { label: "Quantity", field: "quantity", placeholder: "30, 73, 65 (for each size)" },
+    { label: "Availability", field: "availability", placeholder: "Available, Not Available" },
+    { label: "Product Fit", field: "fit", placeholder: "e.g., Slim" },
+    { label: "Product Fabric", field: "fabric", placeholder: "e.g., Wool Blend" },
+    { label: "Sustainable", field: "sustainable", placeholder: "e.g., No" },
+    { label: "Material & Care", field: "materialCare", placeholder: "e.g., Machine wash cold" },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar tab={"product"} />
-      <div className="flex items-center justify-between bg-white px-6 py-4 mt-5 rounded-4xl shadow">
+      <div className="flex items-center justify-between bg-white px-6 py-4 mt-5 rounded-4xl shadow mx-auto max-w-7xl">
         <h1 className="text-lg font-semibold">Add Products</h1>
         <button
           onClick={handleSubmit}
-          className="rounded-full bg-[#2A85FF] px-5 py-2 text-sm font-medium text-white shadow hover:bg-blue-700"
+          disabled={isSubmitting}
+          className="rounded-full bg-[#2A85FF] px-5 py-2 text-sm font-medium text-white shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Publish
+          {isSubmitting ? "Publishing..." : "Publish"}
         </button>
       </div>
 
       <div className="mx-auto mt-6 grid max-w-7xl grid-cols-1 gap-6 px-6 lg:grid-cols-3">
-        <div className="rounded-xl shadow-md bg-white p-4 h-[550px] pt-5">
-          <div
-            className="flex h-64 flex-col items-center justify-center rounded-xl bg-[#F2F2F2] cursor-pointer"
-            onClick={() => fileInputRef.current.click()}
-          >
-            <Upload className="h-10 w-10 text-[#2A85FF]" />
-            <p className="mt-2 text-sm font-medium text-[#2A85FF]">Upload Image</p>
-            <p className="mt-1 text-xs text-gray-500 text-center">
-              Upload a cover image for your product.<br />
-              File Format jpeg, png <br /> Recommended Size 600×600 (1:1)
-            </p>
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-            />
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {formData.images.map((file, i) => (
-              <div key={i} className="relative">
-                <img
-                  src={URL.createObjectURL(file)}
-                  alt="preview"
-                  className="h-20 w-20 rounded object-cover border"
-                />
-                <button
-                  className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow"
-                  onClick={() =>
-                    setFormData({
-                      ...formData,
-                      images: formData.images.filter((_, idx) => idx !== i),
-                    })
-                  }
+        {/* Image Upload Section */}
+        <div className="space-y-4 lg:col-span-1">
+            <div className="rounded-xl shadow-md bg-white p-4">
+                <div
+                    className="flex h-64 flex-col items-center justify-center rounded-xl bg-[#F2F2F2] cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-500 transition-all"
+                    onClick={() => fileInputRef.current && fileInputRef.current.click()}
                 >
-                  <X size={14} className="text-red-500" />
-                </button>
-              </div>
-            ))}
-          </div>
+                    <Upload className="h-10 w-10 text-[#2A85FF]" />
+                    <p className="mt-2 text-sm font-medium text-[#2A85FF]">Click to Upload Images</p>
+                    <p className="mt-1 text-xs text-gray-500 text-center px-2">
+                        File Format: jpeg, png. Recommended Size: 600×600 (1:1)
+                    </p>
+                    <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        className="hidden"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                    />
+                </div>
+            </div>
+            {formData.images.length > 0 && (
+                <div className="rounded-xl shadow-md bg-white p-4">
+                    <h3 className="text-sm font-medium text-gray-700 mb-3">Image Previews</h3>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                        {formData.images.map((file, i) => (
+                            <div key={i} className="relative aspect-square">
+                                <img
+                                    src={URL.createObjectURL(file)}
+                                    alt={`preview ${i}`}
+                                    className="h-full w-full rounded-md object-cover border"
+                                />
+                                <button
+                                    className="absolute -top-2 -right-2 bg-white rounded-full p-0.5 shadow-lg border"
+                                    onClick={() => removeImage(i)}
+                                >
+                                    <X size={14} className="text-red-500 hover:text-red-700" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
 
-        <div className="rounded-xl bg-white p-6 lg:col-span-2 shadow-md pt-5">
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              { label: "Product Name", field: "name", placeholder: "Black plain nike Shoes" },
-              { label: "Product Color", field: "color", placeholder: "Black" },
-              { label: "Category", field: "category", placeholder: "Mens" },
-              { label: "Product Size", field: "size", placeholder: "Size 9" },
-              { label: "Sub Category", field: "subCategory", placeholder: "Nike Shoes" },
-              { label: "Product Fit", field: "fit", placeholder: "Regular Fit" },
-              { label: "Price", field: "price", placeholder: "3999" },
-              { label: "Product Fabric", field: "fabric", placeholder: "Leather" },
-              { label: "Sustainable", field: "sustainable", placeholder: "Regular" },
-              { label: "Material & Care", field: "materialCare", placeholder: "Cotton, Machine Wash" },
-            ].map((field, i) => (
-              <div key={i}>
-                <label className="mb-1 block text-sm font-medium text-gray-700">{field.label}</label>
+
+        {/* Product Details Form */}
+        <div className="rounded-xl bg-white p-6 lg:col-span-2 shadow-md">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {formFields.map((f) => (
+              <div key={f.field}>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{f.label}</label>
                 <input
                   type="text"
-                  placeholder={field.placeholder}
-                  value={formData[field.field]}
-                  onChange={(e) => handleChange(e, field.field)}
+                  placeholder={f.placeholder}
+                  value={Array.isArray(formData[f.field]) ? formData[f.field].join(", ") : formData[f.field]}
+                  onChange={(e) => handleChange(e, f.field)}
                   className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
                 />
               </div>
             ))}
           </div>
-
-          <div className="mt-4 space-y-2">
+          
+          <div className="mt-4">
             <label className="mb-1 block text-sm font-medium text-gray-700">Product Details</label>
-            {formData.details.map((detail, i) => (
-              <input
-                key={i}
-                type="text"
-                value={detail}
-                onChange={(e) => handleDetailChange(i, e.target.value)}
-                placeholder="Detail"
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
-              />
-            ))}
+            <textarea
+              value={formData.details}
+              onChange={(e) => handleChange(e, 'details')}
+              placeholder="e.g., Slim fit aviator leather jacket crafted with attention to comfort and durability."
+              rows={3}
+              className="w-full resize-none rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-[#2A85FF] focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+
+          <div className="mt-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => handleChange(e, 'description')}
+              placeholder="e.g., Stylish aviator leather jacket made from premium wool blend, perfect for modern men."
+              rows={4}
+              className="w-full resize-none rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-[#2A85FF] focus:ring-2 focus:ring-blue-500 outline-none"
+            />
           </div>
 
           <div className="mt-4">
             <label className="mb-2 block text-sm font-medium text-gray-700">Tags</label>
             <div className="flex flex-wrap gap-2 mb-2">
               {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm text-blue-600"
-                >
+                <span key={tag} className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-sm text-blue-600">
                   {tag}
                   <button onClick={() => removeTag(tag)} className="ml-1 text-blue-400 hover:text-red-500">
                     <X size={14} />
@@ -214,27 +260,13 @@ export default function ProductsAdd() {
                 type="text"
                 value={inputTag}
                 onChange={(e) => setInputTag(e.target.value)}
-                placeholder="Add a tag"
+                placeholder="Add a tag and press enter"
                 className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-[#2A85FF] focus:ring-2 focus:ring-[#2A85FF] outline-none"
               />
-              <button
-                type="submit"
-                className="rounded-md bg-[#2A85FF] px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-              >
+              <button type="submit" className="rounded-md bg-[#2A85FF] px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
                 Add
               </button>
             </form>
-          </div>
-
-          <div className="mt-4">
-            <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => handleChange(e, "description")}
-              placeholder="Enter product description"
-              rows={4}
-              className="w-full resize-none rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-[#2A85FF] focus:ring-2 focus:ring-blue-500 outline-none"
-            />
           </div>
         </div>
       </div>

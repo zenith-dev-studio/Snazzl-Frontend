@@ -79,7 +79,7 @@ export default function ProductDashboard() {
   useEffect(() => {
     async function fetchProducts() {
       try {
-        const res = await fetch("https://snazzl-backend.vercel.app/api/products/get/all");
+        const res = await fetch(import.meta.env.VITE_BASE_URL + "/api/products/get/all");
         const data = await res.json();
         setAllProducts(data);
       } catch (err) {

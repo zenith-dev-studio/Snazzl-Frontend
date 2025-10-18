@@ -10,7 +10,7 @@ export default function OrdersPage() {
   useEffect(() => {
     async function fetchOrders() {
       try {
-        const response = await fetch("https://snazzl-backend.vercel.app/api/orders/get/all");
+        const response = await fetch(import.meta.env.VITE_BASE_URL + "/api/orders/get/all");
         if (!response.ok) {
           throw new Error("Failed to fetch orders.");
         }

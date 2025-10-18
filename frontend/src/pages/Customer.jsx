@@ -10,7 +10,7 @@ export default function CustomersTable() {
   useEffect(() => {
     async function fetchCustomers() {
       try {
-        const response = await fetch("https://snazzl-backend.vercel.app/api/customers/get/all");
+        const response = await fetch(import.meta.env.VITE_BASE_URL + "/api/customers/get/all");
         if (!response.ok) {
           throw new Error("Failed to fetch customer data.");
         }

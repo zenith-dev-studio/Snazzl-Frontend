@@ -38,12 +38,12 @@ export default function Overview() {
       try {
         const [rev, delivered, newCust, refunds, current, activeCust] =
           await Promise.all([
-            fetch("https://snazzl-backend.vercel.app/api/orders/stats/revenue").then((r) => r.json()),
-            fetch("https://snazzl-backend.vercel.app/api/orders/stats/delivered-count").then((r) => r.json()),
-            fetch("https://snazzl-backend.vercel.app/api/customers/stats/new").then((r) => r.json()),
-            fetch("https://snazzl-backend.vercel.app/api/orders/stats/refunds").then((r) => r.json()),
-            fetch("https://snazzl-backend.vercel.app/api/orders/stats/current").then((r) => r.json()),
-            fetch("https://snazzl-backend.vercel.app/api/customers/get/active").then((r) => r.json()),
+            fetch(import.meta.env.VITE_BASE_URL + "/api/orders/stats/revenue").then((r) => r.json()),
+            fetch(import.meta.env.VITE_BASE_URL + "/api/orders/stats/delivered-count").then((r) => r.json()),
+            fetch(import.meta.env.VITE_BASE_URL + "/api/customers/stats/new").then((r) => r.json()),
+            fetch(import.meta.env.VITE_BASE_URL + "/api/orders/stats/refunds").then((r) => r.json()),
+            fetch(import.meta.env.VITE_BASE_URL + "/api/orders/stats/current").then((r) => r.json()),
+            fetch(import.meta.env.VITE_BASE_URL + "/api/customers/get/active").then((r) => r.json()),
           ]);
 
         setStats({
