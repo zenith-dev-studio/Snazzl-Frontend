@@ -22,7 +22,6 @@ export default function AdminStore() {
       console.error("Error fetching store data:", error)
     }
   }
-
   useEffect(() => {
     fetchData()
   }, [BASE_URL])
