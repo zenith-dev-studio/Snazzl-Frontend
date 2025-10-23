@@ -11,7 +11,6 @@ export default function AdminStore() {
   const [stats, setStats] = useState({ totalStores: 0, totalActiveStores: 0, totalPendingKyc: 0 })
 
   const BASE_URL = import.meta.env.VITE_BASE_URL
-
   const fetchData = async () => {
     try {
       const storesRes = await axios.get(`${BASE_URL}/api/stores/get/all`)
