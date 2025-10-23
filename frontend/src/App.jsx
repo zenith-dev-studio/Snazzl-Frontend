@@ -1,4 +1,6 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { SignedIn, SignedOut, SignIn } from "@clerk/clerk-react";
+import RoleProtectedRoute from "./components/RoleProtectedRoute";
 
 import ProductDashboard from "./pages/Products";
 import ProductAdd from "./pages/ProductAdd";
@@ -9,36 +11,79 @@ import NotificationsPage from "./pages/Notification";
 import AccountPage from "./pages/Account";
 import Overview from "./pages/Overview";
 import AdminDashboard from "./pages/AdminDashboard";
-import AdminOrder from "./pages/AdminOrders";
-import AdminOrderPage from "./pages/AdminOrder";
-import AdminStore from "./pages/AdminStores";
+import AdminOrders from "./pages/AdminOrders";
 import AdminCustomers from "./pages/AdminCustomers";
-import AdminDelivery from "./pages/AdminDelivery";
+import AdminStore from "./pages/AdminStores";
 import AdminProducts from "./pages/AdminProducts";
+import AdminDelivery from "./pages/AdminDelivery";
 import AdminStoreAdd from "./pages/AdminStoreAdd";
+import Redirecting from "./pages/Redirecting";
+
 
 export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/shop/products" element={<ProductDashboard />} />
-        <Route path="/shop/orders" element={<OrdersPage />} />
-        <Route path="/shop/customers" element={<CustomersTable />} />
-        <Route path="/shop/profile" element={<EditProfile />} />
-        <Route path="/shop/notifications" element={<NotificationsPage />} />
-        <Route path="/shop/settings" element={<AccountPage />} />
-        <Route path="/shop/" element={<Overview />} />
-        <Route path="/shop/products/add" element={<ProductAdd />} />
-
-        <Route path="/admin/" element={<AdminDashboard />} />
-        <Route path="/admin/orders" element={<AdminOrder />} />
-        <Route path="/admin/order" element={<AdminOrderPage />} />
-        <Route path="/admin/store" element={<AdminStore />} />
-        <Route path="/admin/customers" element={<AdminCustomers />} />
-        <Route path="/admin/delivery" element={<AdminDelivery />} />
-        <Route path="/admin/products" element={<AdminProducts />} />
-        <Route path="/admin/store/add" element={<AdminStoreAdd />} />
+        <Route
+          path="/signin"
+          element={
+            <SignedOut>
+              <div className="flex items-center justify-center min-h-screen bg-gray-100">
+                <div className="w-full max-w-md p-6">
+                  <SignIn redirectUrl="/redirecting" />
+                </div>
+              </div>
+            </SignedOut>
+          }
+        />
+        <Route path="/redirecting" element={<Redirecting />} />
+        <Route
+          path="/shop/*"
+          element={
+            <RoleProtectedRoute allowedRoles={["shop"]}>
+              <ShopRoutes />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/*"
+          element={
+            <RoleProtectedRoute allowedRoles={["admin"]}>
+              <AdminRoutes />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>
     </Router>
+  );
+}
+
+function ShopRoutes() {
+  return (
+    <Routes>
+      <Route path="products" element={<ProductDashboard />} />
+      <Route path="products/add" element={<ProductAdd />} />
+      <Route path="orders" element={<OrdersPage />} />
+      <Route path="customers" element={<CustomersTable />} />
+      <Route path="profile" element={<EditProfile />} />
+      <Route path="notifications" element={<NotificationsPage />} />
+      <Route path="settings" element={<AccountPage />} />
+      <Route path="/" element={<Overview />} />
+    </Routes>
+  );
+}
+
+function AdminRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<AdminDashboard />} />
+      <Route path="orders" element={<AdminOrders />} />
+      <Route path="customers" element={<AdminCustomers />} />
+      <Route path="store" element={<AdminStore />} />
+      <Route path="products" element={<AdminProducts />} />
+      <Route path="delivery" element={<AdminDelivery/>} />
+      <Route path="store/add" element={<AdminStoreAdd />} />
+    </Routes>
   );
 }

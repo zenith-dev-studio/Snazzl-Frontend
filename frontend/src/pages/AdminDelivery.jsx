@@ -10,9 +10,8 @@ export default function AdminDelivery() {
   const [zoneFilter, setZoneFilter] = useState("")
   const [search, setSearch] = useState("")
 
-  const baseUrl = "https://snazzl-backend.vercel.app/api/agents"
+  const baseUrl = import.meta.env.VITE_BASE_URL + "/api/agents"
 
-  // Fetch all agents
   const fetchAgents = async () => {
     setLoading(true)
     try {
@@ -26,13 +25,53 @@ export default function AdminDelivery() {
 
       const res = await fetch(url)
       const data = await res.json()
-      if (data.success) {
-        setAgents(data.agents)
-      }
+      if (data.success) setAgents(data.agents)
     } catch (err) {
-      console.error(err)
+      console.error("Error fetching agents:", err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const updateStatus = async (agentId, newStatus) => {
+    try {
+      const res = await fetch(`${baseUrl}/update/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId, status: newStatus }),
+      })
+      const data = await res.json()
+      if (data.success) fetchAgents()
+    } catch (err) {
+      console.error("Error updating status:", err)
+    }
+  }
+
+  const updateLicenseStatus = async (agentId, newStatus) => {
+    try {
+      const res = await fetch(`${baseUrl}/update/license-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId, licenseStatus: newStatus }),
+      })
+      const data = await res.json()
+      if (data.success) fetchAgents()
+    } catch (err) {
+      console.error("Error updating license:", err)
+    }
+  }
+
+  const updatePerformance = async (agentId, newPerformance) => {
+    try {
+      const res = await fetch(`${baseUrl}/update/performance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId, ...newPerformance }),
+      })
+      const data = await res.json()
+      if (data.success) fetchAgents()
+    } catch (err) {
+      console.error("Error updating performance:", err)
     }
   }
 
@@ -40,11 +79,11 @@ export default function AdminDelivery() {
     fetchAgents()
   }, [statusFilter, zoneFilter])
 
-  // Filtered search
-  const filteredAgents = agents.filter(agent => 
-    agent.fullName.toLowerCase().includes(search.toLowerCase()) ||
-    agent.email.toLowerCase().includes(search.toLowerCase()) ||
-    agent.phone.includes(search)
+  const filteredAgents = agents.filter(
+    (agent) =>
+      agent.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+      agent.email?.toLowerCase().includes(search.toLowerCase()) ||
+      agent.phone?.includes(search)
   )
 
   return (
@@ -70,19 +109,19 @@ export default function AdminDelivery() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between bg-white p-4 py-6">
+          <div className="flex items-center justify-between bg-white p-4 py-6 rounded-md">
             <input
               type="text"
               placeholder="Search agents by name, email, or phone..."
               className="w-1/3 rounded-md border border-[#E5E7EB] px-3 py-2 text-sm"
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
             />
             <div className="flex gap-3">
               <select
                 className="rounded-md border border-[#E5E7EB] px-3 py-2 text-sm"
                 value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
+                onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <option>All</option>
                 <option>Online</option>
@@ -94,7 +133,7 @@ export default function AdminDelivery() {
                 placeholder="Filter by zone"
                 className="rounded-md border border-[#E5E7EB] px-3 py-2 text-sm"
                 value={zoneFilter}
-                onChange={e => setZoneFilter(e.target.value)}
+                onChange={(e) => setZoneFilter(e.target.value)}
               />
               <button
                 className="rounded-md border border-[#E5E7EB] px-3 py-2 text-sm"
@@ -132,7 +171,10 @@ export default function AdminDelivery() {
                   </tr>
                 ) : (
                   filteredAgents.map((agent, i) => (
-                    <tr key={i} className="border-t border-gray-200 hover:bg-gray-50">
+                    <tr
+                      key={i}
+                      className="border-t border-gray-200 hover:bg-gray-50"
+                    >
                       <td className="px-4 py-3 flex gap-3 items-center">
                         <img
                           src={`https://i.pravatar.cc/40?img=${i + 10}`}
@@ -141,7 +183,9 @@ export default function AdminDelivery() {
                         />
                         <div>
                           <p className="font-medium">{agent.fullName}</p>
-                          <p className="text-xs text-gray-500">{agent.employeeId}</p>
+                          <p className="text-xs text-gray-500">
+                            {agent.employeeId}
+                          </p>
                           <div className="flex items-center text-yellow-600 text-xs">
                             ⭐ {agent.rating}
                           </div>
@@ -155,7 +199,9 @@ export default function AdminDelivery() {
                         </p>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="font-medium">{agent.deliveries} deliveries</p>
+                        <p className="font-medium">
+                          {agent.deliveries} deliveries
+                        </p>
                         <p className="text-xs text-gray-500">
                           {agent.completionRate}% completion
                         </p>
@@ -169,30 +215,53 @@ export default function AdminDelivery() {
                       <td className="px-4 py-3">
                         <p className="text-sm">{agent.vehicleType}</p>
                         <span
-                          className={`text-xs font-medium px-2 py-1 rounded ${
+                          className={`text-xs font-medium px-2 py-1 rounded cursor-pointer ${
                             agent.licenseStatus === "Verified"
                               ? "bg-green-100 text-green-700"
                               : "bg-yellow-100 text-yellow-700"
                           }`}
+                          onClick={() =>
+                            updateLicenseStatus(
+                              agent._id,
+                              agent.licenseStatus === "Verified"
+                                ? "Pending"
+                                : "Verified"
+                            )
+                          }
                         >
                           {agent.licenseStatus}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-medium ${
+                        <select
+                          className={`px-2 py-1 rounded text-xs font-medium border ${
                             agent.status === "Online"
                               ? "bg-green-100 text-green-700"
                               : agent.status === "Busy"
                               ? "bg-yellow-100 text-yellow-700"
                               : "bg-gray-100 text-gray-500"
                           }`}
+                          value={agent.status}
+                          onChange={(e) =>
+                            updateStatus(agent._id, e.target.value)
+                          }
                         >
-                          {agent.status}
-                        </span>
+                          <option>Online</option>
+                          <option>Busy</option>
+                          <option>Offline</option>
+                        </select>
                       </td>
                       <td className="px-4 py-3 flex gap-2 text-gray-600">
-                        {/* Actions can be implemented here: Edit, Delete, View */}
+                        <button
+                          onClick={() =>
+                            updatePerformance(agent._id, {
+                              deliveries: agent.deliveries + 1,
+                            })
+                          }
+                          className="text-blue-600 text-xs underline"
+                        >
+                          +1 Delivery
+                        </button>
                       </td>
                     </tr>
                   ))

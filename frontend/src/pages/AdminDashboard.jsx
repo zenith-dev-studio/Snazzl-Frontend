@@ -1,19 +1,103 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Area } from "recharts";
 
 import { SideBar } from "../components/SideBar";
 import { AdminNav } from "../components/AdminNav";
+import axios from "axios";
+
+
+
+export default function AdminDashboard() {
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(false);
+      const [customers, setCustomers] = useState([])
+        const [stores, setStores] = useState([])
+        const [agents, setAgents] = useState([])
+         const [statusFilter, setStatusFilter] = useState("All")
+  const [zoneFilter, setZoneFilter] = useState("")
+        
+  const [stat, setStats] = useState({ totalStores: 0, totalActiveStores: 0, totalPendingKyc: 0 })
+  const baseUrl = import.meta.env.VITE_BASE_URL;
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${baseUrl}/api/orders/get/all`);
+      setOrders(res.data || []);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+ const fetchAgents = async () => {
+    setLoading(true)
+    try {
+      let url = `${baseUrl}/api/agents/get/all`
+
+      if (statusFilter !== "All") {
+        url = `${baseUrl}/get/by-status?status=${statusFilter}`
+      } else if (zoneFilter) {
+        url = `${baseUrl}/get/by-zone?zone=${zoneFilter}`
+      }
+
+      const res = await fetch(url)
+      const data = await res.json()
+      if (data.success) setAgents(data.agents)
+    } catch (err) {
+      console.error("Error fetching agents:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+    useEffect(() => {
+    fetchAgents()
+  }, [baseUrl])
+
+    const fetchData = async () => {
+    try {
+      const storesRes = await axios.get(`${baseUrl}/api/stores/get/all`)
+      setStores(storesRes.data.stores)
+
+      const statsRes = await axios.get(`${baseUrl}/api/stores/stats`)
+      setStats(statsRes.data.stats)
+    } catch (error) {
+      console.error("Error fetching store data:", error)
+    }
+  }
+
+  useEffect(() => {
+    fetchData()
+  }, [baseUrl])
+
+    useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_BASE_URL}/api/customers/get/all`)
+        const data = await res.json()
+        setCustomers(data)
+      } catch (err) {
+        console.error("Failed to fetch customers:", err)
+      }
+    }
+    fetchCustomers()
+  }, [])
+
+useEffect(()=>{
+  fetchOrders();
+},[])
 
 const stats = [
-  { title: "Total Orders", value: "1,248", sub: "68 today",icon: <svg width="20" height="16" viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  { title: "Total Orders", value: loading ? "..." : orders.length, sub: "68 today",icon: <svg width="20" height="16" viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M20 16H0V0H20V16Z" stroke="#E5E7EB"/>
 <path d="M1.84063 1.31568C1.93438 1.12506 2.14063 1.01568 2.35 1.04381L10 2.00006L17.65 1.04381C17.8594 1.01881 18.0656 1.12818 18.1594 1.31568L19.4625 3.92193C19.7438 4.48131 19.4438 5.15943 18.8438 5.33131L13.7375 6.79068C13.3031 6.91568 12.8375 6.73131 12.6063 6.34381L10 2.00006L7.39375 6.34381C7.1625 6.73131 6.69688 6.91568 6.2625 6.79068L1.15938 5.33131C0.556252 5.15943 0.259377 4.48131 0.540627 3.92193L1.84063 1.31568ZM10.0344 4.00006L11.75 6.85631C12.2156 7.63131 13.1438 8.00006 14.0156 7.75006L18 6.61256V11.8313C18 12.5188 17.5313 13.1188 16.8625 13.2876L10.4844 14.8813C10.1656 14.9626 9.83125 14.9626 9.51563 14.8813L3.1375 13.2876C2.46875 13.1157 2 12.5157 2 11.8282V6.60943L5.9875 7.75006C6.85625 8.00006 7.7875 7.63131 8.25313 6.85631L9.96563 4.00006H10.0344Z" fill="#2563EB"/>
 </svg>
 
 },
-  { title: "Active Customers", value: "3,642", sub: "156 new today", change: "+8%",icon:<svg width="20" height="16" viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  { title: "Active Customers",  value: loading ? "..." : customers.length, sub: "156 new today", change: "+8%",icon:<svg width="20" height="16" viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g clip-path="url(#clip0_5_241)">
 <g clip-path="url(#clip1_5_241)">
 <path d="M4.5 0C5.16304 0 5.79893 0.263392 6.26777 0.732233C6.73661 1.20107 7 1.83696 7 2.5C7 3.16304 6.73661 3.79893 6.26777 4.26777C5.79893 4.73661 5.16304 5 4.5 5C3.83696 5 3.20107 4.73661 2.73223 4.26777C2.26339 3.79893 2 3.16304 2 2.5C2 1.83696 2.26339 1.20107 2.73223 0.732233C3.20107 0.263392 3.83696 0 4.5 0ZM16 0C16.663 0 17.2989 0.263392 17.7678 0.732233C18.2366 1.20107 18.5 1.83696 18.5 2.5C18.5 3.16304 18.2366 3.79893 17.7678 4.26777C17.2989 4.73661 16.663 5 16 5C15.337 5 14.7011 4.73661 14.2322 4.26777C13.7634 3.79893 13.5 3.16304 13.5 2.5C13.5 1.83696 13.7634 1.20107 14.2322 0.732233C14.7011 0.263392 15.337 0 16 0ZM0 9.33438C0 7.49375 1.49375 6 3.33437 6H4.66875C5.16562 6 5.6375 6.10938 6.0625 6.30312C6.02187 6.52812 6.00313 6.7625 6.00313 7C6.00313 8.19375 6.52812 9.26562 7.35625 10C7.35 10 7.34375 10 7.33437 10H0.665625C0.3 10 0 9.7 0 9.33438ZM12.6656 10C12.6594 10 12.6531 10 12.6438 10C13.475 9.26562 13.9969 8.19375 13.9969 7C13.9969 6.7625 13.975 6.53125 13.9375 6.30312C14.3625 6.10625 14.8344 6 15.3313 6H16.6656C18.5063 6 20 7.49375 20 9.33438C20 9.70312 19.7 10 19.3344 10H12.6656ZM7 7C7 6.20435 7.31607 5.44129 7.87868 4.87868C8.44129 4.31607 9.20435 4 10 4C10.7956 4 11.5587 4.31607 12.1213 4.87868C12.6839 5.44129 13 6.20435 13 7C13 7.79565 12.6839 8.55871 12.1213 9.12132C11.5587 9.68393 10.7956 10 10 10C9.20435 10 8.44129 9.68393 7.87868 9.12132C7.31607 8.55871 7 7.79565 7 7ZM4 15.1656C4 12.8656 5.86562 11 8.16562 11H11.8344C14.1344 11 16 12.8656 16 15.1656C16 15.625 15.6281 16 15.1656 16H4.83437C4.375 16 4 15.6281 4 15.1656Z" fill="#059669"/>
@@ -29,7 +113,7 @@ const stats = [
 </defs>
 </svg>
  },
-  { title: "Store Partners", value: "247", sub: "12 pending approval",icon: <svg width="18" height="16" viewBox="0 0 18 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  { title: "Store Partners",  value: loading ? "..." : stat.totalActiveStores, sub: "12 pending approval",icon: <svg width="18" height="16" viewBox="0 0 18 16" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g clip-path="url(#clip0_5_246)">
 <g clip-path="url(#clip1_5_246)">
 <path d="M17.1125 3.24375L15.3219 0.409375C15.1625 0.15625 14.8781 0 14.575 0H3.42499C3.12187 0 2.83749 0.15625 2.67812 0.409375L0.884367 3.24375C-0.0406331 4.70625 0.778117 6.74062 2.50624 6.975C2.63124 6.99062 2.75937 7 2.88437 7C3.69999 7 4.42499 6.64375 4.92187 6.09375C5.41874 6.64375 6.14374 7 6.95937 7C7.77499 7 8.49999 6.64375 8.99687 6.09375C9.49374 6.64375 10.2187 7 11.0344 7C11.8531 7 12.575 6.64375 13.0719 6.09375C13.5719 6.64375 14.2937 7 15.1094 7C15.2375 7 15.3625 6.99062 15.4875 6.975C17.2219 6.74375 18.0437 4.70938 17.1156 3.24375H17.1125ZM15.6156 7.96562H15.6125C15.4469 7.9875 15.2781 8 15.1062 8C14.7187 8 14.3469 7.94062 14 7.83437V12H3.99999V7.83125C3.64999 7.94063 3.27499 8 2.88749 8C2.71562 8 2.54374 7.9875 2.37812 7.96562H2.37499C2.24687 7.94687 2.12187 7.925 1.99999 7.89375V12V14C1.99999 15.1031 2.89687 16 3.99999 16H14C15.1031 16 16 15.1031 16 14V12V7.89375C15.875 7.925 15.75 7.95 15.6156 7.96562Z" fill="#4F46E5"/>
@@ -46,7 +130,7 @@ const stats = [
 </svg>
 
 },
-  { title: "Delivery Agents", value: "124", sub: "85 active now", change: "-3%",icon:<svg width="20" height="16" viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  { title: "Delivery Agents", value: loading ? "..." : agents.length, sub: "85 active now", change: "-3%",icon:<svg width="20" height="16" viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g clip-path="url(#clip0_5_251)">
 <path d="M20 16H0V0H20V16Z" stroke="#E5E7EB"/>
 <path d="M8.75 0.999951C8.33438 0.999951 8 1.33433 8 1.74995C8 2.16558 8.33438 2.49995 8.75 2.49995H10.5531L11.0656 3.44683L8 5.99995L6.58437 4.58433C6.20937 4.20933 5.7 3.99995 5.16875 3.99995H2C1.44687 3.99995 1 4.44683 1 4.99995V5.99995H4C6.7625 5.99995 9 8.23745 9 11C9 11.3437 8.96562 11.6781 8.9 12H11.1C11.0344 11.6781 11 11.3437 11 11C11 9.3687 11.7812 7.9187 12.9906 7.0062L13.4719 7.89995C12.575 8.63433 12 9.74995 12 11C12 13.2093 13.7906 15 16 15C18.2094 15 20 13.2093 20 11C20 8.79058 18.2094 6.99995 16 6.99995C15.5781 6.99995 15.1719 7.06558 14.7906 7.18745L13.0688 3.99995H15C15.5531 3.99995 16 3.55308 16 2.99995V1.99995C16 1.44683 15.5531 0.999951 15 0.999951H14.3625C14.1281 0.999951 13.9031 1.0812 13.7219 1.2312L12.2406 2.46558L11.8031 1.65308C11.5844 1.24995 11.1625 0.996826 10.7031 0.996826H8.75V0.999951ZM14.4594 9.72495L15.3406 11.3562C15.5375 11.7218 15.9938 11.8562 16.3563 11.6593C16.7188 11.4625 16.8562 11.0062 16.6594 10.6437L15.7781 9.01245C15.85 9.00308 15.925 8.99995 16 8.99995C17.1031 8.99995 18 9.89683 18 11C18 12.1031 17.1031 13 16 13C14.8969 13 14 12.1031 14 11C14 10.5156 14.1719 10.0718 14.4594 9.72495ZM5.85313 11.75C5.55625 12.4843 4.8375 13 4 13C2.89687 13 2 12.1031 2 11C2 9.89683 2.89687 8.99995 4 8.99995C4.84062 8.99995 5.55938 9.51558 5.85313 10.25H7.92812C7.57812 8.39995 5.95312 6.99995 4 6.99995C1.79063 6.99995 0 8.79058 0 11C0 13.2093 1.79063 15 4 15C5.95312 15 7.57812 13.6 7.93125 11.75H5.85313ZM4 12C4.26522 12 4.51957 11.8946 4.70711 11.7071C4.89464 11.5195 5 11.2652 5 11C5 10.7347 4.89464 10.4804 4.70711 10.2928C4.51957 10.1053 4.26522 9.99995 4 9.99995C3.73478 9.99995 3.48043 10.1053 3.29289 10.2928C3.10536 10.4804 3 10.7347 3 11C3 11.2652 3.10536 11.5195 3.29289 11.7071C3.48043 11.8946 3.73478 12 4 12Z" fill="#D97706"/>
@@ -80,8 +164,6 @@ const orderStatusData = [
   { name: "Delivered", value: 42 },
 ];
 const COLORS = ["#FF6B6B", "#FFD93D", "#6BCB77", "#4D96FF", "#845EC2"];
-
-export default function AdminDashboard() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <SideBar route={"dashboard"}/>
@@ -188,11 +270,7 @@ export default function AdminDashboard() {
         </tr>
       </thead>
       <tbody className="divide-y">
-        {[
-          { name: "Mike Johnson", id: "DA001", email: "mike.johnson@deliveryhub.com", phone: "+1 234-567-8900", zone: "Manhattan Zone A", rating: 4.8 },
-          { name: "Sarah Wilson", id: "DA002", email: "sarah.wilson@deliveryhub.com", phone: "+1 234-567-8901", zone: "Brooklyn Zone B", rating: 4.9 },
-          { name: "David Chen", id: "DA003", email: "david.chen@deliveryhub.com", phone: "+1 234-567-8902", zone: "Queens Zone C", rating: 4.6 },
-        ].map((agent, i) => (
+        {agents.map((agent, i) => (
           <tr key={i} className="hover:bg-gray-50">
             <td className="py-3 flex items-center gap-3">
               <img
@@ -399,7 +477,7 @@ export default function AdminDashboard() {
     </ul>
   </div>
 </div>
-<div className="p-4">
+{/* <div className="p-4">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
   <h4 className="mb-4 font-semibold text-gray-700">Recent Orders</h4>
   <div className="overflow-x-auto">
@@ -513,7 +591,7 @@ export default function AdminDashboard() {
     </table>
   </div>
 </div>
-</div>
+</div> */}
 
       </div>
     </div>

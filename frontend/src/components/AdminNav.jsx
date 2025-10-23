@@ -1,7 +1,9 @@
 import { Menu, Search, Bell, User } from "lucide-react";
+import { useClerk } from "@clerk/clerk-react";
 
 export function AdminNav()
 {
+    const { signOut } = useClerk();
     return <header className="flex justify-between items-center mb-6 bg-white p-4 w-full">
           <input type="text" placeholder="Search orders, stores, customers..." className="border border-[#E5E7EB] rounded-lg px-4 py-2 w-1/2" />
           <div className="flex items-center gap-3">
@@ -24,6 +26,12 @@ export function AdminNav()
           <User className="cursor-pointer"/>
 
             <span className="font-semibold">John Admin</span>
+            <button
+          className="px-4 py-2 rounded-full font-medium bg-red-500 text-white hover:bg-red-600 ml-2"
+          onClick={() => signOut()}
+        >
+          Sign Out
+        </button>
           </div>
         </header>
 }

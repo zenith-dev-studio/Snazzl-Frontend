@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
+import { useClerk } from "@clerk/clerk-react";
 
 export function NavBar({tab})
 {
+  const { signOut } = useClerk();
     return  <header className="flex items-center justify-between px-6 py-2 bg-white shadow-sm rounded-4xl mt-5">
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center font-bold">L</div>
@@ -101,6 +103,12 @@ Analytics</Link>
 </svg>
 </Link>
           <button className="px-4 py-2 rounded-full font-medium">Profile</button>
+           <button
+          className="px-4 py-2 rounded-full font-medium bg-red-500 text-white hover:bg-red-600 ml-2"
+          onClick={() => signOut()}
+        >
+          Sign Out
+        </button>
         </div>
       </header>
 }
