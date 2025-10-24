@@ -1,7 +1,8 @@
-"use client";
+
 import React, { useState } from "react";
 import axios from "axios";
-import { ArrowLeft, ChevronDown, X, Map, Info, User, Settings, Store } from "lucide-react";
+import { ArrowLeft, ChevronDown, X, Map, Info, User, Settings, Store, Image } from "lucide-react";
+
 const Link = ({ to, children, className }) => (
   <a href={to} className={className}>
     {children}
@@ -11,7 +12,9 @@ const Link = ({ to, children, className }) => (
 const FormSection = ({ icon, title, children }) => (
   <div className="bg-white p-6 rounded-lg shadow-sm">
     <div className="flex items-center mb-4">
-      <div className="p-2 mr-3 bg-gray-100 rounded-full">{React.cloneElement(icon, { className: "h-6 w-6 text-gray-600" })}</div>
+      <div className="p-2 mr-3 bg-gray-100 rounded-full">
+        {React.cloneElement(icon, { className: "h-6 w-6 text-gray-600" })}
+      </div>
       <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
     </div>
     <div className="space-y-4">{children}</div>
@@ -93,38 +96,35 @@ const TagsInput = ({ tags, setTags }) => {
   );
 };
 
+const FileInput = ({ label, multiple = false, onChange }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <input
+      type="file"
+      multiple={multiple}
+      onChange={onChange}
+      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm text-gray-600"
+    />
+  </div>
+);
+
 export default function AdminStoreAdd() {
-  const initialFormState = {
+  const [formState, setFormState] = useState({
     storeName: "",
     description: "",
     category: "Fashion",
     tags: [],
-    address: {
-      street: "",
-      city: "",
-      state: "",
-      country: "",
-      zip: ""
-    },
-    contact: {
-      phone: "",
-      email: ""
-    },
-    settings: {
-      status: true, // This will be controlled by storeStatus
-      storeType: "",
-      businessType: ""
-    },
-    owner: {
-      fullName: "",
-      phone: "",
-      email: ""
-    },
+    address: { street: "", city: "", state: "", country: "", zip: "" },
+    contact: { phone: "", email: "" },
+    settings: { status: true, storeType: "", businessType: "" },
+    owner: { fullName: "", phone: "", email: "" },
     kycStatus: "Pending",
-    storeStatus: "Active"
-  };
+    storeStatus: "Active",
+    logo: null,
+    poster: [],
+    gallery: []
+  });
 
-  const [formState, setFormState] = useState(initialFormState);
   const [loading, setLoading] = useState(false);
 
   const handleInputChange = e => {
@@ -136,57 +136,69 @@ export default function AdminStoreAdd() {
         [keys[0]]: { ...prev[keys[0]], [keys[1]]: value }
       }));
     } else {
-      if (name === "storeStatus") {
-        setFormState(prev => ({
-          ...prev,
-          storeStatus: value,
-          settings: { ...prev.settings, status: value === "Active" }
-        }));
-      } else {
-        setFormState(prev => ({ ...prev, [name]: value }));
-      }
+      setFormState(prev => ({ ...prev, [name]: value }));
     }
   };
 
   const handleTagsChange = newTags => setFormState(prev => ({ ...prev, tags: newTags }));
+
+  const handleFileChange = (e, fieldName, multiple = false) => {
+    const files = Array.from(e.target.files);
+    setFormState(prev => ({
+      ...prev,
+      [fieldName]: multiple ? files : files[0]
+    }));
+  };
 
   const handleSubmit = async () => {
     if (!formState.storeName || !formState.owner.email) {
       alert("Store Name and Owner Email are required!");
       return;
     }
-    const payload = {
-      ...formState,
-      partnerName: formState.owner.fullName,
-      email: formState.owner.email,
-      phone: formState.owner.phone,
-      status: formState.storeStatus,
-      role: 'Store Partner',
-      joinedAt: new Date().toISOString(),
-    };
 
-    console.log("Submitting transformed payload:", payload);
+    const formData = new FormData();
+    formData.append("storeName", formState.storeName);
+    formData.append("description", formState.description);
+    formData.append("category", formState.category);
+    formData.append("tags", JSON.stringify(formState.tags));
+    formData.append("address", JSON.stringify(formState.address));
+    formData.append("contact", JSON.stringify(formState.contact));
+    formData.append("settings", JSON.stringify(formState.settings));
+    formData.append("owner", JSON.stringify(formState.owner));
+    formData.append("kycStatus", formState.kycStatus);
+    formData.append("storeStatus", formState.storeStatus);
+
+    if (formState.logo) formData.append("logo", formState.logo);
+    formState.poster.forEach(file => formData.append("poster", file));
+    formState.gallery.forEach(file => formData.append("gallery", file));
+
     setLoading(true);
     try {
-      const VITE_BASE_URL = "https://snazzl-backend-deploy.vercel.app";
       const res = await axios.post(
-        `${VITE_BASE_URL}/api/store-partners/add`,
-        payload,
-        { headers: { "Content-Type": "application/json" } }
+        "https://snazzl-backend-deploy.vercel.app/api/stores/addWithImages",
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
       );
-
-      alert("Store added successfully!");
-      console.log("API Response:", res.data);
-      setFormState(initialFormState);
+      alert("✅ Store added successfully!");
+      console.log("Response:", res.data);
+      setFormState({
+        storeName: "",
+        description: "",
+        category: "Fashion",
+        tags: [],
+        address: { street: "", city: "", state: "", country: "", zip: "" },
+        contact: { phone: "", email: "" },
+        settings: { status: true, storeType: "", businessType: "" },
+        owner: { fullName: "", phone: "", email: "" },
+        kycStatus: "Pending",
+        storeStatus: "Active",
+        logo: null,
+        poster: [],
+        gallery: []
+      });
     } catch (err) {
-      console.error("Error submitting form:", err);
-      if (err.response) {
-        alert(`Error: ${err.response.data.message || "An error occurred on the server."}`);
-      } else if (err.request) {
-        alert("Could not connect to the server. Please check your network connection.");
-      } else {
-        alert(`An error occurred: ${err.message}`);
-      }
+      console.error("Error:", err);
+      alert(err.response?.data?.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -207,8 +219,8 @@ export default function AdminStoreAdd() {
         <main className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <div className="space-y-8">
             <FormSection icon={<Store />} title="Store Information">
-              <InputField label="Store Name" name="storeName" value={formState.storeName} onChange={handleInputChange} placeholder="e.g. Trendy Threads Boutique"/>
-              <InputField label="Description" name="description" value={formState.description} onChange={handleInputChange} placeholder="A short description of the store"/>
+              <InputField label="Store Name" name="storeName" value={formState.storeName} onChange={handleInputChange} placeholder="e.g. My Awesome Store" />
+              <InputField label="Description" name="description" value={formState.description} onChange={handleInputChange} placeholder="Short store description" />
               <SelectField
                 label="Category"
                 name="category"
@@ -225,21 +237,28 @@ export default function AdminStoreAdd() {
               <TagsInput tags={formState.tags} setTags={handleTagsChange} />
             </FormSection>
 
+            <FormSection icon={<Image />} title="Upload Images">
+              <FileInput label="Logo" onChange={e => handleFileChange(e, "logo")} />
+              <FileInput label="Poster Images" multiple onChange={e => handleFileChange(e, "poster", true)} />
+              <FileInput label="Gallery Images" multiple onChange={e => handleFileChange(e, "gallery", true)} />
+            </FormSection>
+
             <FormSection icon={<Map />} title="Address & Contact">
-              <InputField label="Street Address" name="address.street" value={formState.address.street} onChange={handleInputChange} placeholder="e.g. 123 Main St"/>
-              <InputField label="City" name="address.city" value={formState.address.city} onChange={handleInputChange} placeholder="e.g. Jaipur"/>
-              <InputField label="State / Province" name="address.state" value={formState.address.state} onChange={handleInputChange} placeholder="e.g. Rajasthan"/>
-              <InputField label="Country" name="address.country" value={formState.address.country} onChange={handleInputChange} placeholder="e.g. India"/>
-              <InputField label="ZIP / Postal Code" name="address.zip" value={formState.address.zip} onChange={handleInputChange} placeholder="e.g. 302017"/>
-              <InputField label="Contact Phone" name="contact.phone" value={formState.contact.phone} onChange={handleInputChange} placeholder="+91-xxxxxxxxxx"/>
-              <InputField label="Contact Email" name="contact.email" value={formState.contact.email} onChange={handleInputChange} placeholder="support@example.com"/>
+              <InputField label="Street" name="address.street" value={formState.address.street} onChange={handleInputChange} placeholder="123 Main St" />
+              <InputField label="City" name="address.city" value={formState.address.city} onChange={handleInputChange} placeholder="Jaipur" />
+              <InputField label="State" name="address.state" value={formState.address.state} onChange={handleInputChange} placeholder="Rajasthan" />
+              <InputField label="Country" name="address.country" value={formState.address.country} onChange={handleInputChange} placeholder="India" />
+              <InputField label="ZIP" name="address.zip" value={formState.address.zip} onChange={handleInputChange} placeholder="302017" />
+              <InputField label="Contact Phone" name="contact.phone" value={formState.contact.phone} onChange={handleInputChange} placeholder="+91-XXXXXXXXXX" />
+              <InputField label="Contact Email" name="contact.email" value={formState.contact.email} onChange={handleInputChange} placeholder="support@example.com" />
             </FormSection>
           </div>
+
           <div className="space-y-8">
             <FormSection icon={<User />} title="Owner Details">
-              <InputField label="Full Name" name="owner.fullName" value={formState.owner.fullName} onChange={handleInputChange} placeholder="e.g. Rahul Mehta"/>
-              <InputField label="Phone" name="owner.phone" value={formState.owner.phone} onChange={handleInputChange} placeholder="+91-xxxxxxxxxx"/>
-              <InputField label="Email" name="owner.email" value={formState.owner.email} onChange={handleInputChange} placeholder="owner@example.com"/>
+              <InputField label="Full Name" name="owner.fullName" value={formState.owner.fullName} onChange={handleInputChange} placeholder="John Doe" />
+              <InputField label="Phone" name="owner.phone" value={formState.owner.phone} onChange={handleInputChange} placeholder="+91-XXXXXXXXXX" />
+              <InputField label="Email" name="owner.email" value={formState.owner.email} onChange={handleInputChange} placeholder="owner@example.com" />
             </FormSection>
 
             <FormSection icon={<Settings />} title="Store Settings">
@@ -253,8 +272,8 @@ export default function AdminStoreAdd() {
                   { value: "Inactive", label: "Inactive" }
                 ]}
               />
-               <InputField label="Store Type" name="settings.storeType" value={formState.settings.storeType} onChange={handleInputChange} placeholder="e.g. Retail, Online"/>
-              <InputField label="Business Type" name="settings.businessType" value={formState.settings.businessType} onChange={handleInputChange} placeholder="e.g. Clothing, Electronics"/>
+              <InputField label="Store Type" name="settings.storeType" value={formState.settings.storeType} onChange={handleInputChange} placeholder="Online, Retail" />
+              <InputField label="Business Type" name="settings.businessType" value={formState.settings.businessType} onChange={handleInputChange} placeholder="Electronics, Clothing" />
               <SelectField
                 label="KYC Status"
                 name="kycStatus"
@@ -263,7 +282,7 @@ export default function AdminStoreAdd() {
                 options={[
                   { value: "Pending", label: "Pending" },
                   { value: "Verified", label: "Verified" },
-                  { value: "Rejected", label: "Rejected" },
+                  { value: "Rejected", label: "Rejected" }
                 ]}
               />
             </FormSection>
@@ -273,7 +292,7 @@ export default function AdminStoreAdd() {
         <footer className="mt-8 flex justify-end space-x-3">
           <button
             type="button"
-            onClick={() => setFormState(initialFormState)}
+            onClick={() => window.location.reload()}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none"
           >
             Cancel
@@ -292,4 +311,3 @@ export default function AdminStoreAdd() {
     </div>
   );
 }
-
