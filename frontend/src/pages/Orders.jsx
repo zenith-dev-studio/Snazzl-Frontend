@@ -1,29 +1,22 @@
 import { useState, useEffect } from "react";
 import { Calendar } from "lucide-react";
 import { NavBar } from "../components/NavBar";
+import { useQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
+import { api } from "../../convex/_generated/api";
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    async function fetchOrders() {
-      try {
-        const response = await fetch(import.meta.env.VITE_BASE_URL + "/api/orders/get/all");
-        if (!response.ok) {
-          throw new Error("Failed to fetch orders.");
-        }
-        const data = await response.json();
-        setOrders(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchOrders();
-  }, []);
+  const { 
+    data: orders, 
+    isLoading: loading, 
+    error 
+  } = useQuery(
+    convexQuery(
+      api.orders.getOrdersByStoreId, 
+      { storeId: "k57atqdhfsczhpcv1mfm36xym57s2b70" } // Pass arguments object here
+    )
+  );
 
   const formatPrice = (price) => {
     return `${price > 0 ? "+" : ""}₹ ${Math.abs(price)}`;
@@ -56,7 +49,9 @@ export default function OrdersPage() {
     if (error) {
       return (
         <tr>
-          <td colSpan="7" className="px-6 py-4 text-center text-red-500">{error}</td>
+          <td colSpan="7" className="px-6 py-4 text-center text-red-500">
+            {error.message || "Failed to fetch orders."}
+          </td>
         </tr>
       );
     }
@@ -94,32 +89,32 @@ export default function OrdersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar tab={"orders"}/>
+    <NavBar tab={"orders"}/>
       <div className="mx-auto mt-6 max-w-10xl px-6 h-screen">
         <div className="flex items-center justify-between bg-white px-6 py-4 mt-5 shadow rounded-t-md">
-        <h1 className="text-lg font-semibold">Orders</h1>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search"
-              className="h-10 w-64 rounded-full border pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-[#2A85FF]"
-            />
-            <svg
-              className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+          <h1 className="text-lg font-semibold">Orders</h1>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search"
+                className="h-10 w-64 rounded-full border pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-[#2A85FF]"
+              />
+              <svg
+                className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <button className="flex items-center gap-2 rounded-full border px-4 py-2 text-sm text-gray-600 shadow-sm hover:bg-gray-50">
+              <Calendar className="h-4 w-4" /> Last week
+            </button>
           </div>
-          <button className="flex items-center gap-2 rounded-full border px-4 py-2 text-sm text-gray-600 shadow-sm hover:bg-gray-50">
-            <Calendar className="h-4 w-4" /> Last week
-          </button>
         </div>
-      </div>
         <div className="overflow-hidden rounded-xl bg-white shadow-md">
           <table className="w-full table-auto text-left">
             <thead className="bg-gray-50 text-sm font-medium text-gray-500">
@@ -142,4 +137,3 @@ export default function OrdersPage() {
     </div>
   );
 }
-

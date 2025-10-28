@@ -5,33 +5,44 @@ import axios from "axios";
 import { Search, Filter, ChevronLeft, ChevronRight, MoreVertical } from "lucide-react";
 import { SideBar } from "../components/SideBar";
 import { AdminNav } from "../components/AdminNav";
+import { useQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
+import { api } from "../../convex/_generated/api";
 
 export default function AdminOrders() {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // const [orders, setOrders] = useState([]);
+  // const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const ordersPerPage = 10;
 
-  const baseUrl = import.meta.env.VITE_BASE_URL;
+  // const baseUrl = import.meta.env.VITE_BASE_URL;
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  // useEffect(() => {
+  //   fetchOrders();
+  // }, []);
 
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get(`${baseUrl}/api/orders/get/all`);
-      setOrders(res.data || []);
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // const fetchOrders = async () => {
+  //   try {
+  //     setLoading(true);
+  //     const res = await axios.get(`${baseUrl}/api/orders/get/all`);
+  //     setOrders(res.data || []);
+  //   } catch (error) {
+  //     console.error("Error fetching orders:", error);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
-  const filteredOrders = orders.filter(
+  const { 
+    data: orders, 
+    isLoading: loading, 
+    error 
+  } = useQuery(
+    convexQuery(api.orders.getAllOrders, {})
+  );
+
+  const filteredOrders = (orders || []).filter(
     (o) =>
       o._id.toLowerCase().includes(search.toLowerCase()) ||
       o.address?.city?.toLowerCase().includes(search.toLowerCase())
@@ -79,6 +90,8 @@ export default function AdminOrders() {
           <div className="bg-white rounded-md border border-gray-200 shadow-sm mt-4">
             {loading ? (
               <div className="p-8 text-center text-gray-500 text-sm">Loading orders...</div>
+            ) : error ? (
+              <div className="p-8 text-center text-red-500 text-sm">{error.message}</div>
             ) : currentOrders.length === 0 ? (
               <div className="p-8 text-center text-gray-500 text-sm">No orders found.</div>
             ) : (
