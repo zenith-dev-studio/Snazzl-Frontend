@@ -95,6 +95,27 @@ export const getRejectedOrders = query({
   },
 });
 
+// --- UPDATED ROUTE FOR PENDING ORDERS BY STOREID ---
+export const getPendingOrdersByStoreId = query({
+  args: {
+    storeId: v.id("stores"),
+  },
+  handler: async (ctx, { storeId }) => {
+    const orders = await ctx.db
+      .query("orders")
+      .withIndex("by_storeId", (q) => q.eq("storeId", storeId))
+      .filter((q) => q.eq(q.field("orderStatus"), "Pending"))
+      .order("desc")
+      .collect();
+    
+    if (orders.length === 0) {
+      return [];
+    }
+
+    return Promise.all(orders.map((o) => populateOrder(ctx, o)));
+  },
+});
+
 
 // Accept order (only if paid)
 export const acceptOrder = mutation({
@@ -102,9 +123,9 @@ export const acceptOrder = mutation({
   handler: async (ctx, { id }) => {
     const order = await ctx.db.get(id);
     if (!order) throw new Error("Order not found");
-    if (order.paymentStatus !== "Paid") {
-      throw new Error("Order cannot be accepted by Admin until payment is completed");
-    }
+    // if (order.paymentStatus !== "Paid") {
+    //   throw new Error("Order cannot be accepted by Admin until payment is completed");
+    // }
 
     await ctx.db.patch(id, {
       orderStatus: "confirmed",
@@ -121,9 +142,9 @@ export const rejectOrder = mutation({
   handler: async (ctx, { id }) => {
     const order = await ctx.db.get(id);
     if (!order) throw new Error("Order not found");
-    if (order.paymentStatus !== "Paid") {
-      throw new Error("Order cannot be rejected by Admin until payment is completed");
-    }
+    // if (order.paymentStatus !== "Paid") {
+    //   throw new Error("Order cannot be rejected by Admin until payment is completed");
+    // }
 
     await ctx.db.patch(id, {
       orderStatus: "cancelled",
@@ -538,4 +559,3 @@ export const updateOrderStatus = mutation({
     return { success: true, orderStatus };
   },
 });
-

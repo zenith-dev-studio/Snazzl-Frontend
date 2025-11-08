@@ -1,22 +1,60 @@
 import { useState, useEffect } from "react";
 import { Calendar } from "lucide-react";
 import { NavBar } from "../components/NavBar";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
+import { useConvex } from "convex/react";  
 import { api } from "../../convex/_generated/api";
 
 export default function OrdersPage() {
+  const queryClient = useQueryClient();
+  const [mutatingOrderId, setMutatingOrderId] = useState(null);
+  const convex = useConvex();
+
+  const ordersQuery = convexQuery(
+    api.orders.getOrdersByStoreId, 
+    { storeId: "k57atqdhfsczhpcv1mfm36xym57s2b70" }
+  );
 
   const { 
     data: orders, 
     isLoading: loading, 
     error 
-  } = useQuery(
-    convexQuery(
-      api.orders.getOrdersByStoreId, 
-      { storeId: "k57atqdhfsczhpcv1mfm36xym57s2b70" } // Pass arguments object here
-    )
-  );
+  } = useQuery(ordersQuery);
+
+  const { mutate: acceptOrder, isPending: isAccepting } = useMutation({
+    mutationFn: (args) => convex.mutation(api.orders.acceptOrder, args),
+    onMutate: ({ id }) => {
+      setMutatingOrderId(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ordersQuery.queryKey });
+    },
+    onError: (err) => {
+      console.error("Failed to accept order:", err);
+      alert(err.message || "Failed to accept order.");
+    },
+    onSettled: () => {
+      setMutatingOrderId(null);
+    }
+  });
+
+  const { mutate: rejectOrder, isPending: isRejecting } = useMutation({
+    mutationFn: (args) => convex.mutation(api.orders.rejectOrder, args),
+    onMutate: ({ id }) => {
+      setMutatingOrderId(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ordersQuery.queryKey });
+    },
+    onError: (err) => {
+      console.error("Failed to reject order:", err);
+      alert(err.message || "Failed to reject order.");
+    },
+    onSettled: () => {
+      setMutatingOrderId(null);
+    }
+  });
 
   const formatPrice = (price) => {
     return `${price > 0 ? "+" : ""}₹ ${Math.abs(price)}`;
@@ -26,9 +64,11 @@ export default function OrdersPage() {
     switch (status) {
       case "Delivered": // Assuming "Delivered" or similar is a success status
       case "Done":
+      case "confirmed":
         return "text-green-500";
       case "Cancelled": // Assuming "Cancelled" is a failure status
       case "Failed":
+      case "cancelled":
         return "text-red-500";
       case "Pending":
         return "text-yellow-500";
@@ -41,7 +81,7 @@ export default function OrdersPage() {
     if (loading) {
       return (
         <tr>
-          <td colSpan="7" className="px-6 py-4 text-center">Loading orders...</td>
+          <td colSpan="8" className="px-6 py-4 text-center">Loading orders...</td>
         </tr>
       );
     }
@@ -60,6 +100,12 @@ export default function OrdersPage() {
       const totalAmount = order.items.reduce((sum, item) => sum + item.quantity, 0);
       const isFailed = order.orderStatus === 'Failed' || order.orderStatus === 'Cancelled';
       const displayPrice = isFailed ? -order.total : order.total;
+
+      const isMutatingThis = (isAccepting || isRejecting) && mutatingOrderId === order._id;
+      const isThisAccepting = isAccepting && mutatingOrderId === order._id;
+      const isThisRejecting = isRejecting && mutatingOrderId === order._id;
+      
+      const isPending = order.orderStatus === 'Pending';
 
       return (
         <tr key={order._id}>
@@ -81,6 +127,44 @@ export default function OrdersPage() {
           </td>
           <td className={`px-6 py-3 font-medium ${statusColor(order.orderStatus)}`}>
             {order.orderStatus}
+          </td>
+          <td className="px-6 py-4">
+            {isPending ? (
+              <div className="flex gap-2">
+                {isThisRejecting ? (
+                  <button
+                    disabled
+                    className="px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-full opacity-70 cursor-not-allowed"
+                  >
+                    Rejecting...
+                  </button>
+                ) : isThisAccepting ? (
+                  <button
+                    disabled
+                    className="px-3 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full opacity-70 cursor-not-allowed"
+                  >
+                    Accepting...
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => acceptOrder({ id: order._id })}
+                      className="px-3 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full hover:bg-green-200"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => rejectOrder({ id: order._id })}
+                      className="px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-full hover:bg-red-200"
+                    >
+                      Reject
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <span className="text-gray-400">-</span>
+            )}
           </td>
         </tr>
       );
@@ -126,6 +210,7 @@ export default function OrdersPage() {
                 <th className="px-6 py-3">Price</th>
                 <th className="px-6 py-3">Date</th>
                 <th className="px-6 py-3">Status</th>
+                <th className="px-6 py-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
