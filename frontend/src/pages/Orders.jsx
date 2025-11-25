@@ -1,15 +1,24 @@
 import { useState, useEffect } from "react";
-import { Calendar } from "lucide-react";
+import { Calendar, Eye } from "lucide-react";
 import { NavBar } from "../components/NavBar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { useConvex } from "convex/react";  
 import { api } from "../../convex/_generated/api";
+import OrderDetailsModal from "./OrderDetailsModal.jsx";
 
 export default function OrdersPage() {
   const queryClient = useQueryClient();
   const [mutatingOrderId, setMutatingOrderId] = useState(null);
   const convex = useConvex();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+
+  const openOrderDetailsModal = (order) => {
+    setSelectedOrder(order);
+    setIsModalOpen(true);
+  };
 
   const ordersQuery = convexQuery(
     api.orders.getOrdersByStoreId, 
@@ -97,6 +106,7 @@ export default function OrdersPage() {
     }
 
     return orders.map((order, index) => {
+      console.log("Order Data:", order);
       const totalAmount = order.items.reduce((sum, item) => sum + item.quantity, 0);
       const isFailed = order.orderStatus === 'Failed' || order.orderStatus === 'Cancelled';
       const displayPrice = isFailed ? -order.total : order.total;
@@ -107,10 +117,24 @@ export default function OrdersPage() {
       
       const isPending = order.orderStatus === 'Pending';
 
+      const firstItem = order.items[0];
+      const hasMultipleItems = order.items.length > 1;
+
       return (
         <tr key={order._id}>
           <td className="px-6 py-4">{index + 1}.</td>
-          <td className="px-6 py-4">{order.items[0]?.name || 'N/A'}</td>
+          {/* <td className="px-6 py-4">{order.items[0]?.name || 'N/A'}</td> */}
+          <td className="px-6 py-4">
+            <div className="flex flex-col">
+              <span className="font-medium text-gray-800">{firstItem?.name || 'N/A'}</span>
+                <button
+                  onClick={() => openOrderDetailsModal(order)}
+                  className="mt-1 text-xs font-medium text-[#2A85FF] hover:text-[#1f6acd] flex items-center gap-1 w-fit"
+                >
+                  <Eye className="h-3 w-3 capitalize"/> View more details
+                </button>
+            </div>
+          </td>
           <td className="px-6 py-4">{order.user?.name || 'N/A'}</td>
           <td className="px-6 py-4">{totalAmount}</td>
           <td
@@ -206,7 +230,7 @@ export default function OrdersPage() {
                 <th className="px-6 py-3">S.NO</th>
                 <th className="px-6 py-3">Product</th>
                 <th className="px-6 py-3">Customer</th>
-                <th className="px-6 py-3">Amount</th>
+                <th className="px-6 py-3">Quantity</th>
                 <th className="px-6 py-3">Price</th>
                 <th className="px-6 py-3">Date</th>
                 <th className="px-6 py-3">Status</th>
@@ -219,6 +243,15 @@ export default function OrdersPage() {
           </table>
         </div>
       </div>
+      {isModalOpen && selectedOrder && (
+        <OrderDetailsModal
+          order={selectedOrder}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedOrder(null);
+          }}
+        />
+      )}
     </div>
   );
 }

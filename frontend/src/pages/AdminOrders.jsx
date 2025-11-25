@@ -234,6 +234,7 @@ export default function AdminOrders() {
     queryFn: () => convex.query(api.orders.getAllOrders, {}),
     staleTime: 1000 * 30,
   });
+  
 
   // Online agents query (only fetch when assigning)
   const onlineAgentsQuery = useQuery({
@@ -295,9 +296,10 @@ export default function AdminOrders() {
   };
 
   const filteredOrders = useMemo(() => {
+    const sortedOrders = [...orders].sort((a, b) => b.createdAt - a.createdAt);
     const q = search.trim().toLowerCase();
-    if (!q) return orders;
-    return (orders || []).filter(
+    if (!q) return sortedOrders;
+    return (sortedOrders || []).filter(
       (o) =>
         o._id.toLowerCase().includes(q) ||
         (o.address?.city || "").toLowerCase().includes(q)
